@@ -95,7 +95,7 @@
 
 예시) 콜센터 고객의 A/S 신청 접수된 내용을 DB에 저장하고 신청한 고객에게 이메일을 발송하는 로직
 
-dto)
+dao)
 
 ```java
 public class ServiceRequest {
@@ -136,7 +136,7 @@ public void addNewServiceRequest(ServiceRequest serviceRequest) {
 
 ↓ 오브젝트 중심의 구조로 변경하기
 
-dto)
+dao)
 
 ```java
 @Component
