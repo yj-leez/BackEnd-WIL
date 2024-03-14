@@ -81,7 +81,8 @@
 - JVM 내에서 발생하는 에러로 프로그램 내에서 처리가 불가능한 것
 - ThreadDeath나 가상머신(JVM)의 오작동 등을 말함
 
-![Untitled](Ch7%20daf32b85eed0443e987b77edc5c562e5/Untitled.png)
+![1](https://github.com/yj-leez/BackEnd-WIL/assets/77960090/ac061907-260e-47ed-a742-0eeb03ef7e22)
+
 
 **확인된 예외(checked exception)**
 
