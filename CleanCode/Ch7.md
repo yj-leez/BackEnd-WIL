@@ -3,12 +3,12 @@
 ### 오류 코드보다 예외를 사용하라
 
 - 아래의 예시 코드는 디바이스를 종료하는 로직과 오류를 처리하는 로직이 섞여있다. 뿐만 아니라 함수를 호출한 즉시 오류를 확인해야 하기 때문에 호출자 코드가 복잡해진다. 예외를 던지는 게 낫다.
-    
+
     ```java
     public class DeviceController {
-    
+
     	...
-    
+
     	DeviceHandle handle = getHandle(DEV1);
     	if (handle != DeviceHandle.INVALID) {
     		retrieveDeviceRecord(handle);
@@ -17,22 +17,22 @@
     		} else {
     			logger.log("Device suspended. Unable to shut down");
     		}
-    		
+
     	} else {
     		logger.log("Invalid handle");
     	}
-    
+
     	...
     }
     ```
-    
+
 - 다음과 같이 예외를 던져 비지니스 논리와 오류 처리가 잘 분리된 코드로 작성할 수 있다.
-    
+
     ```java
     public class DeviceController {
-    
+
     	...
-    
+
     	public void sendShutDown() {
     		try {
     			tryToShutDown();
@@ -41,27 +41,27 @@
     			logger.log(e);
     		}
     	}
-    
+
     	private void tryToShutDown() {
     		DeviceHandle handle = getHandle(DEV1);
     		DeviceRecord record = retrieveDeviceRecord(handle);
-    
+
     		pauseDevice(handle);
     		clearDeviceWorkQueue(handle);
     		closeDevice(handle);
     	}
-    
+
     	private DeviceHandle getHandle(DeviceId id) {
     		...
     		throw new DeviceShutDownError("Invalid handle for: " + id.toString());
     		...
     	}
-    	
+
     	...
-    
+
     }
     ```
-    
+
 
 ### Try-Catch-Finally문부터 작성하라
 
@@ -149,11 +149,11 @@ try {
 // Wrapper 클래스
 public class LocalPort {
   private ACMEPort innerPort;
-  
+
   public LocalPort(int portNumber) {
     innerPort = new ACMEPort(portNumber);
   }
-  
+
   public void open() {
     try{
       innerPort.open();
@@ -165,7 +165,7 @@ public class LocalPort {
       throw new PortDeviceFailure(e);
     }
   }
-  
+
   ...
 }
 ```
@@ -173,7 +173,7 @@ public class LocalPort {
 **Wrapper 클래스로 예외 호출 라이브러리 API를 감싸면 좋은 점**
 
 > 외부 API를 사용할 때는 Wrapper 클래스 기법이 최선이다.
-> 
+>
 1. 외부 API를 감싸면 외부 라이브러리와 프로그램 사이에 의존성이 크게 줄어든다.
 2. 나중에 다른 라이브러리로 갈아타도 비용이 적다.
 3. Wrapper 클래스에서 외부 API를 호출하는 대신 테스트 코드를 넣어주면 테스트 하기도 쉽다.
@@ -183,23 +183,23 @@ public class LocalPort {
 
 - null을 반환하는 코드는 호출자에게 책임을 떠넘겨 null 확인이 누락된 문제가 발생하기 쉽다.
     - null을 반환하고 싶다면 대신 예외를 던지거나 특수 사례 객체를 반환한다.
-        
+
         ```java
         List<Employee> employees = getEmployees();
         for(Employee e: employees) {
         	totalPay += e.getPay();
         }
         ```
-        
+
         - 자바에는 `Collections.emptyList()`가 있어 미리 정의된 읽기 전용 리스트를 반환할 수 있다.
-        
+
         ```java
         public List<Employee> getEmployees(){
         	if(...직원이 없다면...){
         		return Collections.emptyList();
         }
         ```
-        
+
         - 이렇게 코드를 변경 시 코드도 깔끔해질뿐더러 NullPointerException이 발생할 가능성도 줄어든다.
 - 정상적인 인수로 null을 기대하는 API가 아니라면 메서드로 null을 전달하는 코드는  최대한 피한다.
     - 예외를 던지거나 assert문을 사용할 순 있다.
@@ -221,7 +221,7 @@ public ResponseEntity signin(String code, boolean developer) throws JsonProcessi
 
 ```java
 private String getKakaoAccessToken(String code, boolean developer) throws JsonProcessingException {
-        
+
         ...header랑 body 생성...
 
         // http 요청하기
@@ -272,7 +272,7 @@ private String sendGetKakaoAccessToken(String code, boolean developer){
 }
 
 private String tryGetKakaoAccessToken(String code, boolean developer) throws JsonProcessingException {
-        
+
         ...header랑 body 생성...
 
         // http 요청하기
@@ -301,3 +301,44 @@ private String tryGetKakaoAccessToken(String code, boolean developer) throws Jso
 
 }
 ```
+
+**함수를 분리하여 구조적으로 파악이 쉽도록 한 번 더 리팩토링하였다.**
+
+```java
+public ResponseEntity signin(String code, boolean developer) {
+        String kakaoAccessToken = getKakaoAccessToken(code, developer);
+        String userInfo = getKakaoInfo(kakaoAccessToken);
+        String authKey = sendParseValue(userInfo, "id");
+
+        ...
+}
+```
+
+```java
+private String getKakaoAccessToken(String code, boolean developer){
+
+        ...header랑 body 생성...
+
+        // http 요청하기
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<String> response;
+        try {
+            response = restTemplate.exchange(
+                    "https://kauth.kakao.com/oauth/token",
+                    HttpMethod.POST,
+                    httpEntity,
+                    String.class
+            );
+        } catch (Exception e){
+            log.error("사용자의 카카오 로그인 인증 코드가 유효하지 않습니다.: " + e.toString());
+            throw new CustomException(ErrorCode.INVALID_AUTHENTICATION_CODE);
+        }
+
+				... 원래 json 파싱하는 코드 존재 -> 이 함수에서 checked 예외 처리 해줘야했음 ...
+        String accessToken = sendParseValue(response.getBody(), "access_token");
+        log.info("Access Token: " + accessToken);
+        return accessToken;
+}
+```
+
+- 원래 json을 파싱하는 코드가 존재했는데 `sendParseKakaoAuthKey(userInfo);` 와 로직이 비슷하여 `sendParseValue(String json, String key값)` 으로 분리하며 통합하였음
